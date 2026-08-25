@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>Restaurant Locator - by Algolia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="./assets/favicon.ico" type="image/png" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.19.1/themes/reset-min.css" integrity="sha256-ZFIW2nI3ZIuMFVoMQBZOjzhdjxfheCmTm/Ajq31ZhNM=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.19.1/themes/satellite-min.css" integrity="sha256-LpV56au6/lX7sNR7R1j7Jy0Y6jREe2uHOQQZxg9uipo=" crossorigin="anonymous">
+    -->
+  </head>
+
+  <body>
+    <!-- INTERFACE -->
+    <div id="autocomplete"></div>
+    <div id="searchbox"></div>
+    <div class="flex gap-4 m-4">
+      <div class="w-1/4 border-1 border-gray-200 rounded-md">
+        <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
+          <h4 class="mb-2 text-sm font-semibold uppercase ">Payment Method</h4>
+          <div id="refinement-list"></div>
+        </div>
+
+        <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
+          <h4 class="mb-2 text-sm font-semibold uppercase ">Ratings</h4>
+          <div id="ratings-menu"></div>
+        </div>
+        
+      </div>
+      <main class="flex-1">
+        <div class="flex gap-4 justify-between items-center py-4">
+          <div id="stats"></div>
+          <div id="sort-by"></div>
+        </div>
+        <div id="hits"></div>
+        <div id="pagination"></div>
+      </main>
+    </div>
+    <!-- /INTERFACE -->
+
+    <!-- TEMPLATES -->
+    <script type="text/html" id="result-template">
+      <div class="results__item">
+      	<div class="result">
+      		<div class="result__image-container">
+      		</div>
+      		<div class="result__text-container">
+      			<h1 class="result__title">{{name}}</h1>
+      			<p class="result__summary">{{food_type}} | {{neighborhood}} | {{price_range}}</p>
+      		</div>
+      	</div>
+      </div>
+    </script>
+
+    <script type="text/html" id="no-results-template">
+      <div id="no-results-message">
+      	<p>We didn't find any results for the search <em>"{{query}}"</em>.</p>
+      	<a href="." class='clear-all'>Clear search</a>
+      </div>
+    </script>
+    <!-- /TEMPLATES -->
+
+    <!-- SCRIPTS -->
+    <script src="./index.js"></script>
+
+    <!-- Load the Algolia Experiences library at the end of <body> -->
+    <script src="https://cdn.jsdelivr.net/npm/@algolia/experiences/dist/experiences.js?appId=9VYW6DIHRW&apiKey=97f0583a82af28f88461e62ad0bdf8e9&experienceId=9VYW6DIHRW&env=prod"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/algoliasearch@5.57.0/dist/lite/builds/browser.umd.js"
+      integrity="sha256-NJrnXIMFVRGMM2IieD83YpTvsPPIFKKyj4K/MNyTRQU="
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4.112.0/dist/instantsearch.production.min.js" integrity="sha256-L/uuFNSZ4b4RfpkGECfRzFJaO752CMZxKmoJQScpEPA=" crossorigin="anonymous"></script>
+    <script>
+      const { liteClient: algoliasearch } = window["algoliasearch/lite"];
+
+      const appID = "9VYW6DIHRW";
+      const apiKey = "97f0583a82af28f88461e62ad0bdf8e9";
+      const indexName = "restaurants_list";
+
+      const searchClient = algoliasearch(appID, apiKey);
+
+      const search = instantsearch({
+        indexName,
+        searchClient,
+      });
+
+      search.addWidgets([
+        instantsearch.widgets.autocomplete({
+          container: "#searchbox",
+        }),
+
+        // stats
+        instantsearch.widgets.stats({
+          container: "#stats",
+            templates: {
+              text(data, { html }) {
+                let count = "";
+
+                if (data.hasManyResults) {
+                  count += `${data.nbHits} results`;
+                } else if (data.hasOneResult) {
+                  count += `1 result`;
+                } else {
+                  count += `no result`;
+                }
+
+                return html`<span class="font-semibold">${count}</span><span class="text-sm"> found in ${data.processingTimeMS}ms</span>`;
+              },
+            }
+        }),
+
+        // sort by
+        instantsearch.widgets.sortBy({
+          container: "#sort-by",
+          items: [
+            { label: "Relavance", value: "restaurants_list" }
+          ]
+        }),
+
+        // Search results
+        instantsearch.widgets.hits({
+          container: "#hits",
+          cssClasses: {
+            list: "grid grid-cols-5 gap-4",
+            item: "border-1 border-gray-200 rounded-md"
+          },
+          templates: {
+            item(hit, { html, components }) {
+              return html`
+                <img src="${hit.image_url}" />
+                <div class="p-4">
+                  <h2>${components.Highlight({ attribute: "name", hit })}</h2>
+                  <p>${hit.description}</p>
+                </div
+              `;
+            },
+          },
+        }),
+
+        // Pagination
+        instantsearch.widgets.pagination({
+          container: "#pagination",
+          cssClasses: {
+            root: "flex justify-end m-4 p-4 rounded-md border-1 border-gray-200",
+            list: "flex w-fit border-1 border-gray-200 rounded-md",
+            item: "px-2 py-1 border-r-1 border-gray-200 last:border-0",
+            selectedItem: "bg-gray-200"
+          }
+        }),
+
+        // Payment Method Refinement List
+        instantsearch.widgets.refinementList({
+          container: "#refinement-list",
+          attribute: "payment_options",
+          sortBy: ["count:desc"],
+          cssClasses: {
+            item: "px-2 py-1 rounded-md",
+            selectedItem: "bg-gray-100",
+            label: "flex gap-2 items-center",
+            labelText: "flex-1",
+            count: "px-1 py-1/2 border-1 border-gray-200 bg-gray-100 rounded-md text-sm"
+          }
+        }),
+
+        // Ratings Menu
+        instantsearch.widgets.ratingMenu({
+          container: "#ratings-menu",
+          attribute: "rating",
+          cssClasses: {
+            item: "flex gap-2 px-2 py-1 rounded-md",
+            selectedItem: "bg-gray-100",
+            count: "px-1 py-1/2 border-1 border-gray-200 bg-gray-100 rounded-md text-sm"
+          }
+        })
+      ]);
+
+      search.start();
+    </script>
+    <!-- /SCRIPTS -->
+  </body>
+</html>
