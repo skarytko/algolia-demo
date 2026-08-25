@@ -21,7 +21,11 @@
       <div class="w-1/4 border-1 border-gray-200 rounded-md">
         <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
           <h4 class="mb-2 text-sm font-semibold uppercase ">Payment Method</h4>
-          <div id="refinement-list"></div>
+          <div id="food-type-refinement-list"></div>
+        </div>
+        <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
+          <h4 class="mb-2 text-sm font-semibold uppercase ">Payment Method</h4>
+          <div id="payment-method-refinement-list"></div>
         </div>
 
         <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
@@ -154,7 +158,20 @@
 
         // Payment Method Refinement List
         instantsearch.widgets.refinementList({
-          container: "#refinement-list",
+          container: "#food-type-refinement-list",
+          attribute: "food_type",
+          sortBy: ["count:desc"],
+          cssClasses: {
+            item: "px-2 py-1 rounded-md",
+            selectedItem: "bg-gray-100",
+            label: "flex gap-2 items-center",
+            labelText: "flex-1",
+            count: "px-1 py-1/2 border-1 border-gray-200 bg-gray-100 rounded-md text-sm"
+          }
+        }),
+
+        instantsearch.widgets.refinementList({
+          container: "#payment-method-refinement-list",
           attribute: "payment_options",
           sortBy: ["count:desc"],
           cssClasses: {
@@ -169,7 +186,7 @@
         // Ratings Menu
         instantsearch.widgets.ratingMenu({
           container: "#ratings-menu",
-          attribute: "rating",
+          attribute: "stars_count",
           cssClasses: {
             item: "flex gap-2 px-2 py-1 rounded-md",
             selectedItem: "bg-gray-100",
