@@ -11,6 +11,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.19.1/themes/reset-min.css" integrity="sha256-ZFIW2nI3ZIuMFVoMQBZOjzhdjxfheCmTm/Ajq31ZhNM=" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@8.19.1/themes/satellite-min.css" integrity="sha256-LpV56au6/lX7sNR7R1j7Jy0Y6jREe2uHOQQZxg9uipo=" crossorigin="anonymous">
     -->
+    <style>
+      #geo-search .ais-GeoSearch-map {
+        height: 200px;
+      }
+    </style>
   </head>
 
   <body>
@@ -43,6 +48,7 @@
         
       </div>
       <main class="flex-1">
+        <div id="geo-search" class="border-1 border-gray-200 rounded-md"></div>
         <div class="flex gap-4 justify-between items-center py-4">
           <div id="stats"></div>
           <div id="sort-by"></div>
@@ -91,7 +97,7 @@
 
       const appID = "9VYW6DIHRW";
       const apiKey = "97f0583a82af28f88461e62ad0bdf8e9";
-      const indexName = "restaurant_list";
+      const indexName = "restaurants_list";
 
       const searchClient = algoliasearch(appID, apiKey);
 
@@ -111,13 +117,14 @@
       search.addWidgets([
         instantsearch.widgets.autocomplete({
           container: "#searchbox",
+          placeholder: "Find your restaurant...",
           indices: [
             {
               indexName,
               getQuery: (item) => item.name,
               getURL: (item) => `/search?q=${item.name}`,
               templates: {
-                header: (_, { html }) => html`<div>Products</div>`,
+                header: (_, { html }) => html`<div>Restaurants</div>`,
                 item: ({ item, onSelect }, { html }) =>
                   html`<div onClick=${onSelect}>${item.name}</div>`,
               },
@@ -155,8 +162,9 @@
         instantsearch.widgets.sortBy({
           container: "#sort-by",
           items: [
-            { label: "Relavance", value: "restaurant_list" },
-            { label: "Rating ASC", value: "restaurant_list_stars_asc" }
+            { label: "Relavance", value: "restaurants_list" },
+            { label: "Rating (Best to Worst)", value: "restaurants_list_rating_desc" },
+            { label: "Rating (Worst to Best)", value: "restaurants_list_rating_asc" }
           ],
           cssClasses: {
             select: "px-3 py-2 border-1 border-gray-200 rounded-md"
@@ -176,11 +184,12 @@
                 <img class="h-[120px]" src="${hit.image_url}" />
                 <div class="flex-1 py-4">
                   <h2 class="text-lg font-medium">${components.Highlight({ attribute: "name", hit })}</h2>
-                  <div class="flex items-center gap-1 mt-1 text-gray-400">${hit.stars_count} ${renderStars(hit.stars_count, html)} (${hit.reviews_count})</div>
+                  <div class="flex items-center gap-1 mt-1 text-gray-400">${hit.stars_avg} ${renderStars(hit.stars_count, html)} (${hit.reviews_count})</div>
                   <p class="text-gray-400">${hit.food_type} | ${hit.neighborhood} | ${hit.price_range}</p>
                 </div>
-                <div class="my-4 pr-4">
-                  <a href="${hit.mobile_reserve_url}" class="px-3 py-2 bg-gray-100 border-1 border-gray-200 rounded-md" target="_blank">Reserve</a>
+                <div class="flex flex-col gap-2 my-4 pr-4">
+                  <a href="${hit.mobile_reserve_url}" class="px-3 py-2 bg-gray-100 border-1 border-gray-200 rounded-md text-center" target="_blank">Reserve</a>
+                  <a href="tel:${hit.phone}" class="px-3 py-2 bg-gray-100 border-1 border-gray-200 rounded-md text-center">Call</a>
                 </div>
               `;
             },
@@ -277,7 +286,27 @@
           }
         );
       }
+
+      // Called by the Google Maps script once `google.maps` (Map, LatLng, etc.) is fully loaded.
+      // The geoSearch widget is added here rather than in the main addWidgets() call above because
+      // googleReference must point to a ready google.maps object, not just the early bootstrap stub.
+      window.initGeoSearch = function () {
+        search.addWidgets([
+          instantsearch.widgets.geoSearch({
+            container: "#geo-search",
+            googleReference: window.google,
+            cssClasses: {
+              control: 'hidden'
+            }
+          }),
+        ]);
+      };
     </script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_506jx3yyEZuPjXE0-pR4vFgGAbzYd8&loading=async&callback=initGeoSearch"
+      async
+      defer
+    ></script>
     <!-- /SCRIPTS -->
   </body>
 </html>
