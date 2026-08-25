@@ -15,14 +15,22 @@
 
   <body>
     <!-- INTERFACE -->
-    <div id="autocomplete"></div>
-    <div id="searchbox"></div>
-    <div class="flex gap-4 m-4">
+    <div id="searchbox" class="mx-4 my-4"></div>
+    <div class="flex gap-4 mx-4 mb-4">
       <div class="w-1/4 border-1 border-gray-200 rounded-md">
+        <!-- Food Cuisine Refinement --> 
         <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
-          <h4 class="mb-2 text-sm font-semibold uppercase ">Payment Method</h4>
+          <h4 class="mb-2 text-sm font-semibold uppercase ">Food/Cuisine Type</h4>
           <div id="food-type-refinement-list"></div>
         </div>
+
+        <!-- Price Range Refinement -->
+        <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
+          <h4 class="mb-2 text-sm font-semibold uppercase ">Price Range</h4>
+          <div id="price-range-refinement-list"></div>
+        </div>
+
+        <!-- Payment Method Refinement -->
         <div class="m-4 p-4 border-1 border-gray-200 rounded-md">
           <h4 class="mb-2 text-sm font-semibold uppercase ">Payment Method</h4>
           <div id="payment-method-refinement-list"></div>
@@ -39,7 +47,7 @@
           <div id="stats"></div>
           <div id="sort-by"></div>
         </div>
-        <div id="hits"></div>
+        <div id="hits" class="mb-4"></div>
         <div id="pagination"></div>
       </main>
     </div>
@@ -83,9 +91,17 @@
 
       const appID = "9VYW6DIHRW";
       const apiKey = "97f0583a82af28f88461e62ad0bdf8e9";
-      const indexName = "restaurants_list";
+      const indexName = "restaurant_list";
 
       const searchClient = algoliasearch(appID, apiKey);
+
+      function renderStars(count, html) {
+        return Array.from(
+          { length: 5 },
+          (_, i) =>
+            html`<span class="${i < count ? "text-amber-400" : "text-gray-300"}">★</span>`
+        );
+      }
 
       const search = instantsearch({
         indexName,
@@ -95,6 +111,24 @@
       search.addWidgets([
         instantsearch.widgets.autocomplete({
           container: "#searchbox",
+          indices: [
+            {
+              indexName,
+              getQuery: (item) => item.name,
+              getURL: (item) => `/search?q=${item.name}`,
+              templates: {
+                header: (_, { html }) => html`<div>Products</div>`,
+                item: ({ item, onSelect }, { html }) =>
+                  html`<div onClick=${onSelect}>${item.name}</div>`,
+              },
+            }
+          ]
+        }),
+
+        // Geo tracking: rank/filter by distance from the searcher.
+        // Falls back to IP-based location until precise coords are available (see below).
+        instantsearch.widgets.configure({
+          aroundLatLngViaIP: true,
         }),
 
         // stats
@@ -121,25 +155,33 @@
         instantsearch.widgets.sortBy({
           container: "#sort-by",
           items: [
-            { label: "Relavance", value: "restaurants_list" }
-          ]
+            { label: "Relavance", value: "restaurant_list" },
+            { label: "Rating ASC", value: "restaurant_list_stars_asc" }
+          ],
+          cssClasses: {
+            select: "px-3 py-2 border-1 border-gray-200 rounded-md"
+          }
         }),
 
         // Search results
         instantsearch.widgets.hits({
           container: "#hits",
           cssClasses: {
-            list: "grid grid-cols-5 gap-4",
-            item: "border-1 border-gray-200 rounded-md"
+            list: "grid grid-cols-1 gap-4",
+            item: "flex gap-4 border-1 border-gray-200 rounded-md"
           },
           templates: {
             item(hit, { html, components }) {
               return html`
-                <img src="${hit.image_url}" />
-                <div class="p-4">
-                  <h2>${components.Highlight({ attribute: "name", hit })}</h2>
-                  <p>${hit.description}</p>
-                </div
+                <img class="h-[120px]" src="${hit.image_url}" />
+                <div class="flex-1 py-4">
+                  <h2 class="text-lg font-medium">${components.Highlight({ attribute: "name", hit })}</h2>
+                  <div class="flex items-center gap-1 mt-1 text-gray-400">${hit.stars_count} ${renderStars(hit.stars_count, html)} (${hit.reviews_count})</div>
+                  <p class="text-gray-400">${hit.food_type} | ${hit.neighborhood} | ${hit.price_range}</p>
+                </div>
+                <div class="my-4 pr-4">
+                  <a href="${hit.mobile_reserve_url}" class="px-3 py-2 bg-gray-100 border-1 border-gray-200 rounded-md" target="_blank">Reserve</a>
+                </div>
               `;
             },
           },
@@ -149,7 +191,7 @@
         instantsearch.widgets.pagination({
           container: "#pagination",
           cssClasses: {
-            root: "flex justify-end m-4 p-4 rounded-md border-1 border-gray-200",
+            root: "flex justify-end",
             list: "flex w-fit border-1 border-gray-200 rounded-md",
             item: "px-2 py-1 border-r-1 border-gray-200 last:border-0",
             selectedItem: "bg-gray-200"
@@ -183,19 +225,58 @@
           }
         }),
 
+        instantsearch.widgets.refinementList({
+          container: "#price-range-refinement-list",
+          attribute: "price_range",
+          sortBy: ["count:desc"],
+          cssClasses: {
+            item: "px-2 py-1 rounded-md",
+            selectedItem: "bg-gray-100",
+            label: "flex gap-2 items-center",
+            labelText: "flex-1",
+            count: "px-1 py-1/2 border-1 border-gray-200 bg-gray-100 rounded-md text-sm"
+          }
+        }),
+
         // Ratings Menu
         instantsearch.widgets.ratingMenu({
           container: "#ratings-menu",
           attribute: "stars_count",
+          templates: {
+            item(item, { html }) {
+              const filledCount = item.stars.filter(Boolean).length;
+              return html`
+                <a href="${item.url}" class="flex items-center gap-2">
+                  <span class="flex items-center gap-1">${renderStars(filledCount, html)}</span>
+                  <span class="flex-1 text-sm text-gray-400">& Up</span>
+                </a>
+              `;
+            },
+          },
           cssClasses: {
             item: "flex gap-2 px-2 py-1 rounded-md",
-            selectedItem: "bg-gray-100",
-            count: "px-1 py-1/2 border-1 border-gray-200 bg-gray-100 rounded-md text-sm"
+            selectedItem: "bg-gray-100"
           }
         })
       ]);
 
       search.start();
+
+      // Upgrade from IP-based location to the browser's precise geolocation, if granted.
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            search.helper
+              .setQueryParameter("aroundLatLngViaIP", undefined)
+              .setQueryParameter("aroundLatLng", `${latitude},${longitude}`)
+              .search();
+          },
+          (error) => {
+            console.warn("Geolocation unavailable, using IP-based location instead.", error);
+          }
+        );
+      }
     </script>
     <!-- /SCRIPTS -->
   </body>
